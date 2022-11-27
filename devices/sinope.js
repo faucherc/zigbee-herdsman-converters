@@ -233,7 +233,7 @@ module.exports = [
                 .withSystemMode(['off', 'heat'])
                 .withRunningState(['idle', 'heat'])
                 .withPiHeatingDemand(),
-            exposes.binary('enable_outdoor_temperature', ea.ALL, 'on', 'off')
+            exposes.binary('enable_outdoor_temperature', ea.ALL, 'ON', 'OFF')
                 .withDescription('Showing outdoor temperature on secondary display'),
             exposes.enum('temperature_display_mode', ea.ALL, ['celsius', 'fahrenheit'])
                 .withDescription('The temperature format displayed on the thermostat screen'),
@@ -275,11 +275,11 @@ module.exports = [
                 .withDescription('The maximum ambient temperature limit when in floor control mode'),
             exposes.enum('floor_temperature_sensor', ea.ALL, ['10k', '12k'])
                 .withDescription('The floor sensor'),
-            exposes.enum('main_cycle_output', ea.ALL, ['15 sec', '5 min', '10 min', '15 min', '20 min', '30 min'])
+            exposes.enum('main_cycle_output', ea.ALL, ['15_sec', '5_min', '10_min', '15_min', '20_min', '30_min'])
                 .withDescription('The length of the control cycle according to the type of load connected to the thermostats'),
-            exposes.enum('aux_cycle_output', ea.ALL, ['off', '15 sec', '5 min', '10 min', '15 min', '20 min', '30 min'])
+            exposes.enum('aux_cycle_output', ea.ALL, ['off', '15_sec', '5_min', '10_min', '15_min', '20_min', '30_min'])
                 .withDescription('The length of the control cycle according to the type of auxiliary load connected to the thermostats'),
-            exposes.binary('pump_protection', ea.ALL, 'on', 'off')
+            exposes.binary('pump_protection', ea.ALL, 'ON', 'OFF')
                 .withDescription('This function prevents the seizure of the pump'),
             exposes.numeric('aux_connected_load', ea.ALL)
                 .withUnit('W')

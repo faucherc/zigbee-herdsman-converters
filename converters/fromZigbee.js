@@ -3485,8 +3485,8 @@ const converters = {
         type: ['readResponse'],
         convert: (model, msg, publish, options, meta) => {
             const result = {};
-            const cycleOutputLookup = {15: '15 sec', 300: '5 min', 600: '10 min',
-                900: '15 min', 1200: '20 min', 1800: '30 min', 65535: 'off'};
+            const cycleOutputLookup = {15: '15_sec', 300: '5_min', 600: '10_min',
+                900: '15_min', 1200: '20_min', 1800: '30_min', 65535: 'off'};
             if (msg.data.hasOwnProperty('1024')) {
                 const lookup = {0: 'unoccupied', 1: 'occupied'};
                 result.thermostat_occupancy = lookup[msg.data['1024']];
@@ -3509,14 +3509,11 @@ const converters = {
         type: ['readResponse'],
         convert: (model, msg, publish, options, meta) => {
             const result = {};
-            if (msg.data.hasOwnProperty('outdoorTempToDisplay')) {
-                result.outdoor_temp_to_display = msg.data['outdoorTempToDisplay'];
-            }
             if (msg.data.hasOwnProperty('outdoorTempToDisplayTimeout')) {
-                result.enable_outdoor_temperature = msg.data['outdoorTempToDisplayTimeout'] == 10800 ? 'on' : 'off';
+                result.enable_outdoor_temperature = msg.data['outdoorTempToDisplayTimeout'] == 10800 ? 'ON' : 'OFF';
             }
             if (msg.data.hasOwnProperty('currentTimeToDisplay')) {
-                result.currentTimeToDisplay = msg.data['currentTimeToDisplay'];
+                result.current_time_to_display = msg.data['currentTimeToDisplay'];
             }
             if (msg.data.hasOwnProperty('floorControlMode')) {
                 const lookup = {1: 'ambiant', 2: 'floor'};
@@ -3544,9 +3541,6 @@ const converters = {
                 const lookup = {0: '10k', 1: '12k'};
                 result.floor_temperature_sensor = lookup[msg.data['temperatureSensor']];
             }
-            if (msg.data.hasOwnProperty('floorLimitStatus')) {
-                result.floorLimitStatus = msg.data['floorLimitStatus'];
-            }
             if (msg.data.hasOwnProperty('timeFormatToDisplay')) {
                 const lookup = {0: '24h', 1: '12h'};
                 result.time_format = lookup[msg.data['timeFormatToDisplay']];
@@ -3561,7 +3555,7 @@ const converters = {
                 }
             }
             if (msg.data.hasOwnProperty('pumpProtection')) {
-                result.pump_protection = msg.data['pumpProtection'] == 1 ? 'on' : 'off';
+                result.pump_protection = msg.data['pumpProtection'] == 1 ? 'ON' : 'OFF';
             }
             return result;
         },

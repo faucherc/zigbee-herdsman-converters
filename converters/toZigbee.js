@@ -4334,7 +4334,7 @@ const converters = {
         // TH1400ZB specific
         key: ['main_cycle_output'],
         convertSet: async (entity, key, value, meta) => {
-            const lookup = {'15 sec': 15, '5 min': 300, '10 min': 600, '15 min': 900, '20 min': 1200, '30 min': 1800};
+            const lookup = {'15_sec': 15, '5_min': 300, '10_min': 600, '15_min': 900, '20_min': 1200, '30_min': 1800};
             await entity.write('hvacThermostat', {SinopeMainCycleOutput: lookup[value]});
             return {state: {'main_cycle_output': value}};
         },
@@ -4346,7 +4346,7 @@ const converters = {
         // TH1400ZB specific
         key: ['aux_cycle_output'],
         convertSet: async (entity, key, value, meta) => {
-            const lookup = {'off': 65535, '15 sec': 15, '5 min': 300, '10 min': 600, '15 min': 900, '20 min': 1200, '30 min': 1800};
+            const lookup = {'off': 65535, '15_sec': 15, '5_min': 300, '10_min': 600, '15_min': 900, '20_min': 1200, '30_min': 1800};
             await entity.write('hvacThermostat', {SinopeAuxCycleOutput: lookup[value]});
             return {state: {'aux_cycle_output': value}};
         },
