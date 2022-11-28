@@ -1486,6 +1486,40 @@ const converters = {
             await entity.read('hvacThermostat', ['minCoolSetpointLimit']);
         },
     },
+    abs_thermostat_min_heat_setpoint_limit: {
+        key: ['abs_min_heat_setpoint_limit'],
+        convertSet: async (entity, key, value, meta) => {
+            let result;
+            if (meta.options.thermostat_unit === 'fahrenheit') {
+                result = Math.round(utils.normalizeCelsiusVersionOfFahrenheit(value) * 100);
+            } else {
+                result = (Math.round((value * 2).toFixed(1)) / 2).toFixed(1) * 100;
+            }
+            const absMinHeatSetpointLimit = result;
+            await entity.write('hvacThermostat', {absMinHeatSetpointLimit});
+            return {state: {min_heat_setpoint_limit: value}};
+        },
+        convertGet: async (entity, key, meta) => {
+            await entity.read('hvacThermostat', ['absMinHeatSetpointLimit']);
+        },
+    },
+    abs_thermostat_max_heat_setpoint_limit: {
+        key: ['abs_max_heat_setpoint_limit'],
+        convertSet: async (entity, key, value, meta) => {
+            let result;
+            if (meta.options.thermostat_unit === 'fahrenheit') {
+                result = Math.round(utils.normalizeCelsiusVersionOfFahrenheit(value) * 100);
+            } else {
+                result = (Math.round((value * 2).toFixed(1)) / 2).toFixed(1) * 100;
+            }
+            const absMaxHeatSetpointLimit = result;
+            await entity.write('hvacThermostat', {absMaxHeatSetpointLimit});
+            return {state: {abs_max_heat_setpoint_limit: value}};
+        },
+        convertGet: async (entity, key, meta) => {
+            await entity.read('hvacThermostat', ['absMaxHeatSetpointLimit']);
+        },
+    },
     thermostat_max_cool_setpoint_limit: {
         key: ['max_cool_setpoint_limit'],
         convertSet: async (entity, key, value, meta) => {
@@ -4316,6 +4350,9 @@ const converters = {
             const SinopeOccupancy = utils.getKey(sinopeOccupancy, value, value, Number);
             await entity.write('hvacThermostat', {SinopeOccupancy});
             return {state: {'thermostat_occupancy': value}};
+        },
+        convertGet: async (entity, key, meta) => {
+            await entity.read('hvacThermostat', ['SinopeOccupancy']);
         },
     },
     sinope_thermostat_backlight_autodim_param: {
