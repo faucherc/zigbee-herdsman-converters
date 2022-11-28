@@ -14,26 +14,65 @@ module.exports = [
         vendor: 'Sinopé',
         description: 'Zigbee line volt thermostat',
         meta: {thermostat: {dontMapPIHeatingDemand: true}},
-        fromZigbee: [
-            fz.legacy.sinope_thermostat_att_report, fz.legacy.hvac_user_interface, fz.electrical_measurement, fz.metering,
-            fz.ignore_temperature_report, fz.legacy.sinope_thermostat_state, fz.sinope_thermostat],
-        toZigbee: [
-            tz.thermostat_local_temperature, tz.thermostat_occupied_heating_setpoint, tz.thermostat_unoccupied_heating_setpoint,
+        fromZigbee: [fz.legacy.sinope_thermostat_att_report, fz.legacy.hvac_user_interface, fz.electrical_measurement, fz.metering,
+            fz.ignore_temperature_report, fz.legacy.sinope_thermostat_state, fz.sinope_thermostat, fz.sinope_TH1400ZB_specific],
+
+        toZigbee: [tz.thermostat_local_temperature, tz.thermostat_occupied_heating_setpoint, tz.thermostat_unoccupied_heating_setpoint,
             tz.thermostat_temperature_display_mode, tz.thermostat_keypad_lockout, tz.thermostat_system_mode, tz.thermostat_running_state,
-            tz.sinope_thermostat_occupancy, tz.sinope_thermostat_backlight_autodim_param, tz.sinope_thermostat_time,
-            tz.sinope_thermostat_enable_outdoor_temperature, tz.sinope_thermostat_outdoor_temperature, tz.sinope_time_format],
+            tz.sinope_thermostat_backlight_autodim_param, tz.sinope_thermostat_time, tz.sinope_thermostat_enable_outdoor_temperature,
+            tz.sinope_thermostat_outdoor_temperature, tz.sinope_time_format, tz.thermostat_min_heat_setpoint_limit,
+            tz.thermostat_max_heat_setpoint_limit, tz.abs_thermostat_min_heat_setpoint_limit, tz.abs_thermostat_max_heat_setpoint_limit,
+            tz.sinope_thermostat_main_cycle_output, tz.sinope_thermostat_occupancy],
+
         exposes: [
             exposes.climate()
+                .withLocalTemperature()
                 .withSetpoint('occupied_heating_setpoint', 5, 30, 0.5)
                 .withSetpoint('unoccupied_heating_setpoint', 5, 30, 0.5)
-                .withLocalTemperature()
-                .withSystemMode(['off', 'heat']).withRunningState(['idle', 'heat'])
+                .withSystemMode(['off', 'heat'])
+                .withRunningState(['idle', 'heat'])
                 .withPiHeatingDemand(),
-            exposes.enum('thermostat_occupancy', ea.SET, ['unoccupied', 'occupied'])
+            exposes.enum('temperature_display_mode', ea.ALL, ['celsius', 'fahrenheit'])
+                .withDescription('The temperature format displayed on the thermostat screen'),
+            exposes.enum('time_format', ea.ALL, ['24h', '12h'])
+                .withDescription('The time format featured on the thermostat display'),
+            exposes.enum('thermostat_occupancy', ea.ALL, ['unoccupied', 'occupied'])
                 .withDescription('Occupancy state of the thermostat'),
             exposes.enum('backlight_auto_dim', ea.ALL, ['on demand', 'sensing'])
                 .withDescription('Control backlight dimming behavior'),
-            e.keypad_lockout(), e.energy(), e.power(), e.current(), e.voltage()],
+            exposes.enum('keypad_lockout', ea.ALL, ['unlock', 'lock1'])
+                .withDescription('Enables or disables the device’s buttons'),
+            exposes.binary('enable_outdoor_temperature', ea.ALL, 'ON', 'OFF')
+                .withDescription('Showing outdoor temperature on secondary display'),
+            exposes.numeric('min_heat_setpoint_limit', ea.ALL)
+                .withUnit('°C')
+                .withValueMin(5)
+                .withValueMax(30)
+                .withValueStep(0.5)
+                .withDescription('Occupied Heating setpoint Lower limit'),
+            exposes.numeric('max_heat_setpoint_limit', ea.ALL)
+                .withUnit('°C')
+                .withValueMin(5)
+                .withValueMax(30)
+                .withValueStep(0.5)
+                .withDescription('Occupied Heating setpoint Higher limit'),
+            exposes.numeric('abs_min_heat_setpoint_limit', ea.ALL)
+                .withUnit('°C')
+                .withValueMin(5)
+                .withValueMax(30)
+                .withValueStep(0.5)
+                .withDescription('Unoccupied Heating setpoint Lower limit'),
+            exposes.numeric('abs_max_heat_setpoint_limit', ea.ALL)
+                .withUnit('°C')
+                .withValueMin(5)
+                .withValueMax(30)
+                .withValueStep(0.5)
+                .withDescription('Unoccupied Heating setpoint Higher limit'),
+            exposes.enum('main_cycle_output', ea.state, ['15_sec', '5_min', '10_min', '15_min', '20_min', '30_min'])
+                .withDescription('The length of the control cycle according to the type of load connected to the thermostats'), //tempo
+            e.power(), e.current(), e.voltage(), e.energy(),
+    ],
+
         configure: async (device, coordinatorEndpoint, logger) => {
             const endpoint = device.getEndpoint(1);
             const binds = [
@@ -44,36 +83,26 @@ module.exports = [
             await reporting.thermostatTemperature(endpoint);
             await reporting.thermostatPIHeatingDemand(endpoint);
             await reporting.thermostatOccupiedHeatingSetpoint(endpoint);
-
-            try {
-                await reporting.thermostatSystemMode(endpoint);
-            } catch (error) {/* Not all support this */}
-
-            try {
-                await reporting.thermostatRunningState(endpoint);
-            } catch (error) {/* Not all support this */}
+            await reporting.thermostatSystemMode(endpoint);
 
             await reporting.readMeteringMultiplierDivisor(endpoint);
             await reporting.currentSummDelivered(endpoint, {min: 10, max: 303, change: [1, 1]});
-            try {
-                await reporting.instantaneousDemand(endpoint, {min: 10, max: 304, change: 1});
-            } catch (error) {/* Do nothing*/}
-
             await reporting.readEletricalMeasurementMultiplierDivisors(endpoint);
             try {
-                await reporting.activePower(endpoint, {min: 10, max: 305, change: 1});
-            } catch (error) {/* Do nothing*/}
-            try {
-                await reporting.rmsCurrent(endpoint, {min: 10, max: 306, change: 100}); // divider 1000: 0.1Arms
-            } catch (error) {/* Do nothing*/}
-            try {
-                await reporting.rmsVoltage(endpoint, {min: 10, max: 307, change: 5}); // divider 10: 0.5Vrms
-            } catch (error) {/* Do nothing*/}
-
-            // Disable default reporting
-            await reporting.temperature(endpoint, {min: 1, max: 0xFFFF});
-            await endpoint.configureReporting('msTemperatureMeasurement', [
-                {attribute: 'tolerance', minimumReportInterval: 1, maximumReportInterval: 0xFFFF, reportableChange: 1}]);
+                await endpoint.read('haElectricalMeasurement', ['acPowerMultiplier', 'acPowerDivisor']);
+                await reporting.activePower(endpoint, {min: 10, max: 305, change: 1}); // divider 1: 1W
+            } catch (error) {
+                endpoint.saveClusterAttributeKeyValue('haElectricalMeasurement', {'acPowerMultiplier': 1, 'acPowerDivisor': 1});
+            }
+            await reporting.rmsCurrent(endpoint, {min: 10, max: 306, change: 100}); // divider 1000: 0.1Arms
+            await reporting.rmsVoltage(endpoint, {min: 10, max: 307, change: 5}); // divider 10: 0.5Vrms
+            
+            await endpoint.read('hvacThermostat', ['occupiedHeatingSetpoint', 'unoccupiedHeatingSetpoint', 'localTemp',
+                 'systemMode', 'pIHeatingDemand', 'SinopeBacklight', 'SinopeOccupancy', 'minHeatSetpointLimit',
+                 'maxHeatSetpointLimit', 'absMinHeatSetpointLimit', 'absMaxHeatSetpointLimit', 'SinopeMainCycleOutput']);
+            await endpoint.read('hvacUserInterfaceCfg', ['keypadLockout', 'tempDisplayMode']);
+            await endpoint.read('manuSpecificSinope', ['timeFormatToDisplay','outdoorTempToDisplayTimeout']);
+            await reporting.temperature(endpoint, {min: 1, max: 0xFFFF}); // Disable default reporting
         },
     },
     {
@@ -82,26 +111,65 @@ module.exports = [
         vendor: 'Sinopé',
         description: 'Zigbee line volt thermostat',
         meta: {thermostat: {dontMapPIHeatingDemand: true}},
-        fromZigbee: [
-            fz.legacy.sinope_thermostat_att_report, fz.legacy.hvac_user_interface, fz.electrical_measurement, fz.metering,
-            fz.ignore_temperature_report, fz.legacy.sinope_thermostat_state, fz.sinope_thermostat],
-        toZigbee: [
-            tz.thermostat_local_temperature, tz.thermostat_occupied_heating_setpoint, tz.thermostat_unoccupied_heating_setpoint,
+        fromZigbee: [fz.legacy.sinope_thermostat_att_report, fz.legacy.hvac_user_interface, fz.electrical_measurement, fz.metering,
+            fz.ignore_temperature_report, fz.legacy.sinope_thermostat_state, fz.sinope_thermostat, fz.sinope_TH1400ZB_specific],
+
+        toZigbee: [tz.thermostat_local_temperature, tz.thermostat_occupied_heating_setpoint, tz.thermostat_unoccupied_heating_setpoint,
             tz.thermostat_temperature_display_mode, tz.thermostat_keypad_lockout, tz.thermostat_system_mode, tz.thermostat_running_state,
-            tz.sinope_thermostat_occupancy, tz.sinope_thermostat_backlight_autodim_param, tz.sinope_thermostat_time,
-            tz.sinope_thermostat_enable_outdoor_temperature, tz.sinope_thermostat_outdoor_temperature, tz.sinope_time_format],
+            tz.sinope_thermostat_backlight_autodim_param, tz.sinope_thermostat_time, tz.sinope_thermostat_enable_outdoor_temperature,
+            tz.sinope_thermostat_outdoor_temperature, tz.sinope_time_format, tz.thermostat_min_heat_setpoint_limit,
+            tz.thermostat_max_heat_setpoint_limit, tz.abs_thermostat_min_heat_setpoint_limit, tz.abs_thermostat_max_heat_setpoint_limit,
+            tz.sinope_thermostat_main_cycle_output, tz.sinope_thermostat_occupancy],
+
         exposes: [
             exposes.climate()
+                .withLocalTemperature()
                 .withSetpoint('occupied_heating_setpoint', 5, 30, 0.5)
                 .withSetpoint('unoccupied_heating_setpoint', 5, 30, 0.5)
-                .withLocalTemperature()
-                .withSystemMode(['off', 'heat']).withRunningState(['idle', 'heat'])
+                .withSystemMode(['off', 'heat'])
+                .withRunningState(['idle', 'heat'])
                 .withPiHeatingDemand(),
-            exposes.enum('thermostat_occupancy', ea.SET, ['unoccupied', 'occupied'])
+            exposes.enum('temperature_display_mode', ea.ALL, ['celsius', 'fahrenheit'])
+                .withDescription('The temperature format displayed on the thermostat screen'),
+            exposes.enum('time_format', ea.ALL, ['24h', '12h'])
+                .withDescription('The time format featured on the thermostat display'),
+            exposes.enum('thermostat_occupancy', ea.ALL, ['unoccupied', 'occupied'])
                 .withDescription('Occupancy state of the thermostat'),
             exposes.enum('backlight_auto_dim', ea.ALL, ['on demand', 'sensing'])
                 .withDescription('Control backlight dimming behavior'),
-            e.keypad_lockout(), e.energy(), e.power(), e.current(), e.voltage()],
+            exposes.enum('keypad_lockout', ea.ALL, ['unlock', 'lock1'])
+                .withDescription('Enables or disables the device’s buttons'),
+            exposes.binary('enable_outdoor_temperature', ea.ALL, 'ON', 'OFF')
+                .withDescription('Showing outdoor temperature on secondary display'),
+            exposes.numeric('min_heat_setpoint_limit', ea.ALL)
+                .withUnit('°C')
+                .withValueMin(5)
+                .withValueMax(30)
+                .withValueStep(0.5)
+                .withDescription('Occupied Heating setpoint Lower limit'),
+            exposes.numeric('max_heat_setpoint_limit', ea.ALL)
+                .withUnit('°C')
+                .withValueMin(5)
+                .withValueMax(30)
+                .withValueStep(0.5)
+                .withDescription('Occupied Heating setpoint Higher limit'),
+            exposes.numeric('abs_min_heat_setpoint_limit', ea.ALL)
+                .withUnit('°C')
+                .withValueMin(5)
+                .withValueMax(30)
+                .withValueStep(0.5)
+                .withDescription('Unoccupied Heating setpoint Lower limit'),
+            exposes.numeric('abs_max_heat_setpoint_limit', ea.ALL)
+                .withUnit('°C')
+                .withValueMin(5)
+                .withValueMax(30)
+                .withValueStep(0.5)
+                .withDescription('Unoccupied Heating setpoint Higher limit'),
+            exposes.enum('main_cycle_output', ea.state, ['15_sec', '5_min', '10_min', '15_min', '20_min', '30_min'])
+                .withDescription('The length of the control cycle according to the type of load connected to the thermostats'), //tempo
+            e.power(), e.current(), e.voltage(), e.energy(),
+    ],
+
         configure: async (device, coordinatorEndpoint, logger) => {
             const endpoint = device.getEndpoint(1);
             const binds = [
@@ -112,32 +180,26 @@ module.exports = [
             await reporting.thermostatTemperature(endpoint);
             await reporting.thermostatPIHeatingDemand(endpoint);
             await reporting.thermostatOccupiedHeatingSetpoint(endpoint);
-
-            try {
-                await reporting.thermostatRunningState(endpoint);
-            } catch (error) {/* Not all support this */}
+            await reporting.thermostatSystemMode(endpoint);
 
             await reporting.readMeteringMultiplierDivisor(endpoint);
             await reporting.currentSummDelivered(endpoint, {min: 10, max: 303, change: [1, 1]});
-            try {
-                await reporting.instantaneousDemand(endpoint, {min: 10, max: 304, change: 1});
-            } catch (error) {/* Do nothing*/}
-
             await reporting.readEletricalMeasurementMultiplierDivisors(endpoint);
             try {
-                await reporting.activePower(endpoint, {min: 10, max: 305, change: 1});
-            } catch (error) {/* Do nothing*/}
-            try {
-                await reporting.rmsCurrent(endpoint, {min: 10, max: 306, change: 100}); // divider 1000: 0.1Arms
-            } catch (error) {/* Do nothing*/}
-            try {
-                await reporting.rmsVoltage(endpoint, {min: 10, max: 307, change: 5}); // divider 10: 0.5Vrms
-            } catch (error) {/* Do nothing*/}
-
-            // Disable default reporting
-            await reporting.temperature(endpoint, {min: 1, max: 0xFFFF});
-            await endpoint.configureReporting('msTemperatureMeasurement', [
-                {attribute: 'tolerance', minimumReportInterval: 1, maximumReportInterval: 0xFFFF, reportableChange: 1}]);
+                await endpoint.read('haElectricalMeasurement', ['acPowerMultiplier', 'acPowerDivisor']);
+                await reporting.activePower(endpoint, {min: 10, max: 305, change: 1}); // divider 1: 1W
+            } catch (error) {
+                endpoint.saveClusterAttributeKeyValue('haElectricalMeasurement', {'acPowerMultiplier': 1, 'acPowerDivisor': 1});
+            }
+            await reporting.rmsCurrent(endpoint, {min: 10, max: 306, change: 100}); // divider 1000: 0.1Arms
+            await reporting.rmsVoltage(endpoint, {min: 10, max: 307, change: 5}); // divider 10: 0.5Vrms
+            
+            await endpoint.read('hvacThermostat', ['occupiedHeatingSetpoint', 'unoccupiedHeatingSetpoint', 'localTemp',
+                 'systemMode', 'pIHeatingDemand', 'SinopeBacklight', 'SinopeOccupancy', 'minHeatSetpointLimit',
+                 'maxHeatSetpointLimit', 'absMinHeatSetpointLimit', 'absMaxHeatSetpointLimit', 'SinopeMainCycleOutput']);
+            await endpoint.read('hvacUserInterfaceCfg', ['keypadLockout', 'tempDisplayMode']);
+            await endpoint.read('manuSpecificSinope', ['timeFormatToDisplay','outdoorTempToDisplayTimeout']);
+            await reporting.temperature(endpoint, {min: 1, max: 0xFFFF}); // Disable default reporting
         },
     },
     {
